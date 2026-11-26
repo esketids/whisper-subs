@@ -3075,7 +3075,7 @@
                     if (vulkan && !/^\d{1,2}(,\d{1,2})*$/.test(vulkan)) return 'Vulkan device must be a device index such as 0, or several such as 0,1. Leave it empty for automatic.';
                     config.VulkanDevice = vulkan;
                     var cuda = (page.querySelector('#txtCudaDevices').value || '').replace(/\s+/g, '');
-                    if (cuda && !/^\d{1,2}(,\d{1,2})*$/.test(cuda)) return 'CUDA devices must be a device index such as 0, or several such as 0,1,2. Leave it empty for automatic.';
+                    if (cuda && !/^(?:\d{1,2}|GPU-[0-9a-fA-F-]+)(?:,(?:\d{1,2}|GPU-[0-9a-fA-F-]+))*$/.test(cuda)) return 'CUDA devices must be numeric indices (e.g. 0,1) or NVIDIA GPU-... UUIDs. Leave empty for automatic.';
                     config.CudaDevices = cuda;
                     config.AllowDetectionBesideFullModel = page.querySelector('#chkAllowDetectionBesideFullModel').checked;
                     config.CleanTempLeftoversAtStart = page.querySelector('#chkCleanTempLeftoversAtStart').checked;

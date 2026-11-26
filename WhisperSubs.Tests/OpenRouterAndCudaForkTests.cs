@@ -72,6 +72,20 @@ public class OpenRouterAndCudaForkTests
             var s4 = new ProcessStartInfo();
             HostEngineGates.ApplyVulkanDevice(s4);
             Assert.False(s4.Environment.ContainsKey("CUDA_VISIBLE_DEVICES"));
+
+            HostEngineGates.Apply(new PluginConfiguration
+            {
+                CudaDevices = "GPU-103dbd90-49e1-632c-fae7-523edbf218e3, GPU-dfa0c637-2519-d135-ae80-6ca96f949959, GPU-3f0aff19-6c6a-1877-0a9d-2324bcdcd0ca"
+            });
+            var u1 = new ProcessStartInfo();
+            var u2 = new ProcessStartInfo();
+            var u3 = new ProcessStartInfo();
+            HostEngineGates.ApplyVulkanDevice(u1);
+            HostEngineGates.ApplyVulkanDevice(u2);
+            HostEngineGates.ApplyVulkanDevice(u3);
+            Assert.Equal("GPU-103dbd90-49e1-632c-fae7-523edbf218e3", u1.Environment["CUDA_VISIBLE_DEVICES"]);
+            Assert.Equal("GPU-dfa0c637-2519-d135-ae80-6ca96f949959", u2.Environment["CUDA_VISIBLE_DEVICES"]);
+            Assert.Equal("GPU-3f0aff19-6c6a-1877-0a9d-2324bcdcd0ca", u3.Environment["CUDA_VISIBLE_DEVICES"]);
         }
         finally
         {

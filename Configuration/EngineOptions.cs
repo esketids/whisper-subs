@@ -58,6 +58,7 @@ namespace WhisperSubs.Configuration
         internal const int DefaultWindowSeconds = 600;
 
         private static readonly Regex VulkanDevicePattern = new(@"^\d{1,2}(,\d{1,2})*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private static readonly Regex CudaDevicePattern = new(@"^(?:\d{1,2}|GPU-[0-9a-fA-F-]+)(?:,(?:\d{1,2}|GPU-[0-9a-fA-F-]+))*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private static readonly Regex LanguageCodePattern = new("^[a-z]{2,3}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         internal static int DetectionThreads(int value) => Math.Clamp(value, 0, 256);
@@ -83,11 +84,11 @@ namespace WhisperSubs.Configuration
             return VulkanDevicePattern.IsMatch(v) ? v : "";
         }
 
-        /// <summary>Validated comma-separated CUDA device indices (e.g. "0,1,2"), or "" for default.</summary>
+        /// <summary>Validated comma-separated CUDA device indices or NVIDIA GPU UUIDs (e.g. "0,1" or "GPU-..."), or "" for default.</summary>
         internal static string CudaDevices(string? value)
         {
             var v = (value ?? "").Replace(" ", "", StringComparison.Ordinal);
-            return VulkanDevicePattern.IsMatch(v) ? v : "";
+            return CudaDevicePattern.IsMatch(v) ? v : "";
         }
 
         internal static IReadOnlyList<string> CudaDeviceList(string? value)
