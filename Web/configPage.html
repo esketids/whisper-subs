@@ -606,6 +606,10 @@
                             <div class="fieldDescription">A Vulkan device index (0 is the first), or several separated by commas, passed to the engines as GGML_VK_VISIBLE_DEVICES. Empty lets the engine pick its first GPU. This cannot make an SR-IOV virtual function safe: pass only the physical function into the container. <strong>Empty by default.</strong></div>
                         </div>
                         <div class="inputContainer">
+                            <input is="emby-input" type="text" id="txtCudaDevices" label="CUDA devices for whisper.cpp and crispasr (multi-GPU)" placeholder="automatic (e.g. 0,1 or 0,1,2)" />
+                            <div class="fieldDescription">Comma-separated NVIDIA CUDA GPU indices (e.g. <code>0,1</code> or <code>0,1,2</code>) round-robined per engine process via <code>CUDA_VISIBLE_DEVICES</code>. Pair with <strong>Full-model engines at once</strong> to run parallel GPU workers while leaving other GPUs free for NVENC. <strong>Empty by default.</strong></div>
+                        </div>
+                        <div class="inputContainer">
                             <input is="emby-input" type="number" id="numMaxFullModelEngines" label="Full-model engines at once" min="1" max="8" step="1" />
                             <div class="fieldDescription">How many processes with a full model (Whisper transcription or translation, Qwen3-ASR, Canary, detection on the transcription model) may run on this server together, whatever the worker pool asks. Measured on an Intel UHD 770 with Vulkan: Whisper large-v3 about 6.2 GB, crispasr with Qwen3-ASR and its aligner about 5.6 GB. Size it against your container's memory limit: two large-v3 runs need about 12.5 GB on top of Jellyfin itself. 1 to 8, <strong>1 by default.</strong></div>
                         </div>
@@ -2833,6 +2837,7 @@
                             page.querySelector('#numDetectionBatchSize').value = config.DetectionBatchSize > 0 ? config.DetectionBatchSize : 32;
                             page.querySelector('#numDetectionTimeoutSeconds').value = config.DetectionTimeoutSeconds > 0 ? config.DetectionTimeoutSeconds : 300;
                             page.querySelector('#txtVulkanDevice').value = config.VulkanDevice || '';
+                            page.querySelector('#txtCudaDevices').value = config.CudaDevices || '';
                             page.querySelector('#numMaxFullModelEngines').value = config.MaxFullModelEngines > 0 ? config.MaxFullModelEngines : 1;
                             page.querySelector('#chkAllowDetectionBesideFullModel').checked = config.AllowDetectionBesideFullModel !== false;
                             page.querySelector('#numLocalQwen3WindowSeconds').value = config.LocalQwen3WindowSeconds > 0 ? config.LocalQwen3WindowSeconds : 600;
@@ -3069,6 +3074,9 @@
                     var vulkan = (page.querySelector('#txtVulkanDevice').value || '').replace(/\s+/g, '');
                     if (vulkan && !/^\d{1,2}(,\d{1,2})*$/.test(vulkan)) return 'Vulkan device must be a device index such as 0, or several such as 0,1. Leave it empty for automatic.';
                     config.VulkanDevice = vulkan;
+                    var cuda = (page.querySelector('#txtCudaDevices').value || '').replace(/\s+/g, '');
+                    if (cuda && !/^\d{1,2}(,\d{1,2})*$/.test(cuda)) return 'CUDA devices must be a device index such as 0, or several such as 0,1,2. Leave it empty for automatic.';
+                    config.CudaDevices = cuda;
                     config.AllowDetectionBesideFullModel = page.querySelector('#chkAllowDetectionBesideFullModel').checked;
                     config.CleanTempLeftoversAtStart = page.querySelector('#chkCleanTempLeftoversAtStart').checked;
                     config.SuspendRemoteJobsDuringPlayback = page.querySelector('#chkSuspendRemoteJobsDuringPlayback').checked;

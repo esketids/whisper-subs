@@ -616,8 +616,11 @@ namespace WhisperSubs.Api
                 return Ok(new { ok = akou.Ok, warning = false, message = akou.Message });
             }
 
-            var url = worker.ApiUrl.TrimEnd('/') + "/v1/audio/transcriptions";
-            var model = string.IsNullOrWhiteSpace(worker.Model) ? "Systran/faster-whisper-large-v3" : worker.Model.Trim();
+            var normalizedBaseUrl = Providers.RemoteWhisperProvider.NormalizeBaseUrl(worker.ApiUrl);
+            var url = normalizedBaseUrl + "/v1/audio/transcriptions";
+            var model = Providers.RemoteWhisperProvider.NormalizeModelForEndpoint(
+                string.IsNullOrWhiteSpace(worker.Model) ? "Systran/faster-whisper-large-v3" : worker.Model,
+                normalizedBaseUrl);
             var wav = Controller.Workers.SyntheticAudio.SilentWav16kMono(100);
 
             // Reachability pre-probe (v4.1.1): before the (potentially slow) transcribe, do a cheap GET of the
@@ -697,6 +700,11 @@ namespace WhisperSubs.Api
                     probe.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
                         "Bearer", worker.ApiKey.Trim());
                 }
+                if (Providers.RemoteWhisperProvider.IsOpenRouterHost(normalizedBaseUrl))
+                {
+                    probe.Headers.TryAddWithoutValidation("X-OpenRouter-Title", "Jellyfin WhisperSubs");
+                    probe.Headers.TryAddWithoutValidation("HTTP-Referer", "https://github.com/esketids/whisper-subs");
+                }
 
                 // SECURITY-REVIEW: the admin-supplied URL passed link-local/DNS checks above and this
                 // dedicated client disables redirects; do not replace it with the shared redirecting client.
@@ -728,9 +736,9 @@ namespace WhisperSubs.Api
             var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                // Match the runtime negotiation: preserve SRT-first behavior for existing workers, then
-                // retry timestamped JSON only when a Groq/OpenRouter-style endpoint rejects that format.
-                var responseFormat = "srt";
+                // Match the runtime negotiation: preserve SRT-first behavior for existing workers,
+                // start with verbose_json on OpenRouter, and retry timestamped JSON if rejected.
+                var responseFormat = Providers.RemoteWhisperProvider.DefaultResponseFormat(worker.Dialect, normalizedBaseUrl);
                 var response = await SendProbeAsync(responseFormat, probeCts.Token);
                 if (Providers.RemoteWhisperProvider.ShouldRetryProbeAsVerbose(
                         response.StatusCode, response.Body))

@@ -83,6 +83,21 @@ namespace WhisperSubs.Configuration
             return VulkanDevicePattern.IsMatch(v) ? v : "";
         }
 
+        /// <summary>Validated comma-separated CUDA device indices (e.g. "0,1,2"), or "" for default.</summary>
+        internal static string CudaDevices(string? value)
+        {
+            var v = (value ?? "").Replace(" ", "", StringComparison.Ordinal);
+            return VulkanDevicePattern.IsMatch(v) ? v : "";
+        }
+
+        internal static IReadOnlyList<string> CudaDeviceList(string? value)
+        {
+            var normalized = CudaDevices(value);
+            return normalized.Length == 0
+                ? Array.Empty<string>()
+                : normalized.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        }
+
         /// <summary>Lower-case ISO codes, in order, without duplicates; anything else is dropped.</summary>
         internal static IReadOnlyList<string> Languages(IEnumerable<string>? values)
             => (values ?? Enumerable.Empty<string>())

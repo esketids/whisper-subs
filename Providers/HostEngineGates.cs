@@ -38,12 +38,17 @@ namespace WhisperSubs.Providers
         /// <summary>The Vulkan devices engines on this server may use (GGML_VK_VISIBLE_DEVICES); "" = the engine's choice.</summary>
         internal static string VulkanDevice { get; private set; } = "";
 
-        /// <summary>Takes the limits and the Vulkan device from the settings. Safe while engines run.</summary>
+        /// <summary>Comma-separated CUDA device indices round-robined per process via CUDA_VISIBLE_DEVICES; "" = default.</summary>
+        internal static string CudaDevices { get; private set; } = "";
+        private static int _cudaRoundRobin;
+
+        /// <summary>Takes the limits and GPU device lists from the settings. Safe while engines run.</summary>
         internal static void Apply(PluginConfiguration config)
         {
             Model.Limit = EngineOptions.MaxFullModelEngines(config.MaxFullModelEngines);
             DetectionBesideFullModel = config.AllowDetectionBesideFullModel;
             VulkanDevice = EngineOptions.VulkanDevice(config.VulkanDevice);
+            CudaDevices = EngineOptions.CudaDevices(config.CudaDevices);
         }
 
         /// <summary>Restores the defaults (tests).</summary>
@@ -52,13 +57,22 @@ namespace WhisperSubs.Providers
             Model.Limit = 1;
             DetectionBesideFullModel = true;
             VulkanDevice = "";
+            CudaDevices = "";
+            Interlocked.Exchange(ref _cudaRoundRobin, 0);
         }
 
-        /// <summary>Points an engine process at the configured Vulkan device, when one is set.</summary>
+        /// <summary>Points an engine process at the configured Vulkan and/or CUDA device(s), when set.</summary>
         internal static void ApplyVulkanDevice(ProcessStartInfo startInfo)
         {
             var device = VulkanDevice;
             if (device.Length > 0) startInfo.Environment["GGML_VK_VISIBLE_DEVICES"] = device;
+
+            var cudaList = EngineOptions.CudaDeviceList(CudaDevices);
+            if (cudaList.Count > 0)
+            {
+                var idx = (int)((uint)(Interlocked.Increment(ref _cudaRoundRobin) - 1) % (uint)cudaList.Count);
+                startInfo.Environment["CUDA_VISIBLE_DEVICES"] = cudaList[idx];
+            }
         }
     }
 

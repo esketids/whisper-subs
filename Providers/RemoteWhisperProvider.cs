@@ -184,8 +184,8 @@ namespace WhisperSubs.Providers
             _requestGate = maxConcurrentRequests > 0 ? new SemaphoreSlim(maxConcurrentRequests, maxConcurrentRequests) : null;
             _wordCueMaxChars = wordCueMaxChars;
             _logger = logger;
-            _apiUrl = apiUrl.TrimEnd('/');
-            _model = model;
+            _apiUrl = NormalizeBaseUrl(apiUrl);
+            _model = NormalizeModelForEndpoint(model, _apiUrl);
             _apiKey = (apiKey ?? string.Empty).Trim();
             _realtimeFactor = realtimeFactor;
             _minTimeoutSeconds = minTimeoutSeconds;
@@ -212,6 +212,43 @@ namespace WhisperSubs.Providers
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
             }
+            if (IsOpenRouterHost(_apiUrl))
+            {
+                request.Headers.TryAddWithoutValidation("X-OpenRouter-Title", "Jellyfin WhisperSubs");
+                request.Headers.TryAddWithoutValidation("HTTP-Referer", "https://github.com/esketids/whisper-subs");
+            }
+        }
+
+        internal static string NormalizeBaseUrl(string? apiUrl)
+        {
+            var trimmed = (apiUrl ?? string.Empty).Trim().TrimEnd('/');
+            foreach (var suffix in new[] { "/v1/audio/transcriptions", "/v1/audio/translations", "/v1" })
+            {
+                if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    trimmed = trimmed[..^suffix.Length].TrimEnd('/');
+                    break;
+                }
+            }
+            return trimmed;
+        }
+
+        internal static bool IsOpenRouterHost(string? apiUrl)
+            => Uri.TryCreate(apiUrl, UriKind.Absolute, out var uri)
+                && (uri.Host.Equals("openrouter.ai", StringComparison.OrdinalIgnoreCase)
+                    || uri.Host.EndsWith(".openrouter.ai", StringComparison.OrdinalIgnoreCase));
+
+        internal static string NormalizeModelForEndpoint(string? model, string? apiUrl)
+        {
+            var m = (model ?? string.Empty).Trim();
+            if (IsOpenRouterHost(apiUrl)
+                && m.Length > 0
+                && !m.Contains('/', StringComparison.Ordinal)
+                && m.StartsWith("whisper", StringComparison.OrdinalIgnoreCase))
+            {
+                return "openai/" + m;
+            }
+            return m;
         }
 
         [ExcludeFromCodeCoverage(Justification = "HTTP I/O; the pure deadline policy is tested in TranscriptionTimeoutTests")]
@@ -229,6 +266,11 @@ namespace WhisperSubs.Providers
             if (_dialect != WorkerDialect.CrispAsr)
             {
                 WhisperProvider.EnsureEnglishTarget(targetLanguage, Name);
+            }
+            if (translate && CanaryTargetOrNull(translate, targetLanguage) == null && IsOpenRouterHost(_apiUrl))
+            {
+                throw new NotSupportedException(
+                    "OpenRouter does not provide /v1/audio/translations; use local Whisper for English translation or leave Translation targets blank on OpenRouter workers.");
             }
             if (!File.Exists(audioPath))
             {
@@ -310,7 +352,7 @@ namespace WhisperSubs.Providers
                 cachedResponseFormat is null && Volatile.Read(ref _blindNegotiationSpent) == 0;
             // A Qwen3-ASR server's SRT is one cue per 30-second slice; its verbose_json carries the word
             // timestamps the cues are cut from, so that dialect asks for JSON first.
-            var responseFormat = cachedResponseFormat ?? DefaultResponseFormat(_dialect);
+            var responseFormat = cachedResponseFormat ?? DefaultResponseFormat(_dialect, _apiUrl);
             var negotiatedByFormatRejection = false;
             string response;
             try
@@ -604,6 +646,9 @@ namespace WhisperSubs.Providers
         /// <summary>The first format asked of an endpoint: SRT, except the Qwen3-ASR server dialect. Pure.</summary>
         internal static string DefaultResponseFormat(string? dialect)
             => WorkerDialect.Normalize(dialect) == WorkerDialect.CrispAsrQwen3 ? "verbose_json" : "srt";
+
+        internal static string DefaultResponseFormat(string? dialect, string? apiUrl)
+            => IsOpenRouterHost(apiUrl) ? "verbose_json" : DefaultResponseFormat(dialect);
 
         internal static bool HasTimestampedSegmentsArray(string response)
         {

@@ -338,6 +338,13 @@ namespace WhisperSubs.Configuration
         public string VulkanDevice { get; set; } = "";
 
         /// <summary>
+        /// Which CUDA GPU indices local whisper.cpp and crispasr processes may use (e.g. "0,1" or "0,1,2"),
+        /// round-robined per process via CUDA_VISIBLE_DEVICES so multi-GPU hosts spread subtitle jobs across
+        /// chosen GPUs while leaving other GPUs free (e.g. for NVENC transcoding). Empty = engine default.
+        /// </summary>
+        public string CudaDevices { get; set; } = "";
+
+        /// <summary>
         /// Engine processes with a full model (Whisper transcription or translation, Qwen3-ASR, Canary,
         /// detection on the transcription model) allowed at once on this server, 1 to 8. Default 1. Each
         /// takes several GB: large-v3 on Vulkan about 6.2 GB, crispasr Qwen3-ASR with its aligner about 5.6 GB.
