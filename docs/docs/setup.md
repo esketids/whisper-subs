@@ -286,7 +286,7 @@ The CPU does not support AVX2 and you are running one of the AVX2 builds. Select
 
 ### Binary downloads return 404
 
-The download URL uses the plugin version to find the matching GitHub release. Make sure the plugin version matches an existing [release](https://github.com/GeiserX/whisper-subs/releases).
+The download URL uses the plugin version to find the matching GitHub release. Make sure the plugin version matches an existing [release](https://github.com/esketids/whisper-subs/releases).
 
 ### Verify GPU inside Docker
 

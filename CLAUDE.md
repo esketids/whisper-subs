@@ -22,7 +22,7 @@ dotnet test
 dotnet publish -c Release
 ```
 
-Plugin repository manifest: `https://geiserx.github.io/whisper-subs/manifest.json`
+Plugin repository manifest: `https://raw.githubusercontent.com/esketids/whisper-subs/main/manifest.json`
 
 ## Architecture
 

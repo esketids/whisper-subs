@@ -114,6 +114,9 @@ namespace WhisperSubs.Controller.Workers
         {
             // A Qwen3-ASR or akou server translates nothing itself, whatever the row's targets say.
             if (WorkerDialect.IsHostAssisted(row.Dialect)) return hostAssistedEnglish ? EnglishOnly : None;
+            // OpenRouter exposes only /api/v1/audio/transcriptions (no /v1/audio/translations route).
+            if (Providers.RemoteWhisperProvider.IsOpenRouterHost(
+                Providers.RemoteWhisperProvider.NormalizeBaseUrl(row.ApiUrl))) return None;
             if (row.TranslateTargets == null || row.TranslateTargets.Count == 0) return row.CanTranslate ? EnglishOnly : None;
 
             var crisp = WorkerDialect.Normalize(row.Dialect) == WorkerDialect.CrispAsr;

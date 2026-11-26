@@ -94,6 +94,7 @@ namespace WhisperSubs.Providers
                 CreateNoWindow = true
             };
             RoformerRuntime.ConfigureLibraryPath(startInfo, _binaryPath);
+            HostEngineGates.ApplyVulkanDevice(startInfo);
 
             startInfo.ArgumentList.Add(_modelPath);
             startInfo.ArgumentList.Add(inputWavPath);

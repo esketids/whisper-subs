@@ -740,7 +740,8 @@ namespace WhisperSubs.Api
                 // start with verbose_json on OpenRouter, and retry timestamped JSON if rejected.
                 var responseFormat = Providers.RemoteWhisperProvider.DefaultResponseFormat(worker.Dialect, normalizedBaseUrl);
                 var response = await SendProbeAsync(responseFormat, probeCts.Token);
-                if (Providers.RemoteWhisperProvider.ShouldRetryProbeAsVerbose(
+                if (!string.Equals(responseFormat, "verbose_json", StringComparison.Ordinal)
+                    && Providers.RemoteWhisperProvider.ShouldRetryProbeAsVerbose(
                         response.StatusCode, response.Body))
                 {
                     responseFormat = "verbose_json";

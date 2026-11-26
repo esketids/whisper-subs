@@ -591,6 +591,7 @@ namespace WhisperSubs.Setup
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            Providers.HostEngineGates.ApplyVulkanDevice(help);
             help.ArgumentList.Add("--help");
             try
             {
@@ -665,6 +666,7 @@ namespace WhisperSubs.Setup
                     CreateNoWindow = true,
                     WorkingDirectory = probeDirectory
                 };
+                Providers.HostEngineGates.ApplyVulkanDevice(startInfo);
                 foreach (var arg in buildArguments(modelPath, wavPath, CacheDirectory, Path.Combine(probeDirectory, "out")))
                 {
                     startInfo.ArgumentList.Add(arg);

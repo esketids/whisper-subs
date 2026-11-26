@@ -1,6 +1,6 @@
 # Design: non-English translation targets with CrispASR + Canary
 
-Status: implemented (2026-09-23). The sections below describe what shipped; where it differs from the first draft, the text says so. Tracks issues [#38](https://github.com/GeiserX/whisper-subs/issues/38) and [#41](https://github.com/GeiserX/whisper-subs/issues/41).
+Status: implemented (2026-09-23). The sections below describe what shipped; where it differs from the first draft, the text says so. Tracks upstream issues [#38](https://github.com/GeiserX/whisper-subs/issues/38) and [#41](https://github.com/GeiserX/whisper-subs/issues/41).
 
 ## The problem
 

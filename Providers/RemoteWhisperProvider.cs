@@ -230,6 +230,12 @@ namespace WhisperSubs.Providers
                     break;
                 }
             }
+            if (IsOpenRouterHost(trimmed)
+                && Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
+                && (string.IsNullOrEmpty(uri.AbsolutePath) || uri.AbsolutePath == "/"))
+            {
+                trimmed += "/api";
+            }
             return trimmed;
         }
 
@@ -241,12 +247,18 @@ namespace WhisperSubs.Providers
         internal static string NormalizeModelForEndpoint(string? model, string? apiUrl)
         {
             var m = (model ?? string.Empty).Trim();
-            if (IsOpenRouterHost(apiUrl)
-                && m.Length > 0
-                && !m.Contains('/', StringComparison.Ordinal)
-                && m.StartsWith("whisper", StringComparison.OrdinalIgnoreCase))
+            if (IsOpenRouterHost(apiUrl))
             {
-                return "openai/" + m;
+                if (m.Length == 0
+                    || string.Equals(m, "Systran/faster-whisper-large-v3", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "openai/whisper-large-v3";
+                }
+                if (!m.Contains('/', StringComparison.Ordinal)
+                    && m.StartsWith("whisper", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "openai/" + m;
+                }
             }
             return m;
         }
@@ -385,7 +397,8 @@ namespace WhisperSubs.Providers
                     .ConfigureAwait(false);
             }
 
-            if (IsUntimedJsonResponse(response) && !negotiatedByFormatRejection)
+            if (IsUntimedJsonResponse(response) && !negotiatedByFormatRejection
+                && !(IsOpenRouterHost(_apiUrl) && string.Equals(responseFormat, "verbose_json", StringComparison.Ordinal)))
             {
                 responseFormat = AlternateResponseFormat(responseFormat);
                 _logger.LogInformation(

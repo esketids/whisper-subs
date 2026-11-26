@@ -10,11 +10,11 @@ hide:
 </p>
 
 <p align="center">
-  <a href="https://github.com/GeiserX/whisper-subs/releases"><img alt="Release" src="https://img.shields.io/github/v/release/GeiserX/whisper-subs?style=flat-square&logo=github&color=F2B33D"></a>
-  <a href="https://github.com/GeiserX/whisper-subs/actions/workflows/build-release.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/GeiserX/whisper-subs/build-release.yml?branch=main&style=flat-square&label=tests"></a>
-  <a href="https://github.com/GeiserX/whisper-subs/blob/main/LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/github/license/GeiserX/whisper-subs?style=flat-square"></a>
-  <a href="https://github.com/GeiserX/whisper-subs/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/GeiserX/whisper-subs?style=flat-square"></a>
-  <a href="https://codecov.io/gh/GeiserX/whisper-subs"><img alt="Coverage" src="https://img.shields.io/codecov/c/github/GeiserX/whisper-subs?style=flat-square"></a>
+  <a href="https://github.com/esketids/whisper-subs/releases"><img alt="Release" src="https://img.shields.io/github/v/release/esketids/whisper-subs?style=flat-square&logo=github&color=F2B33D"></a>
+  <a href="https://github.com/esketids/whisper-subs/actions/workflows/build-release.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/esketids/whisper-subs/build-release.yml?branch=main&style=flat-square&label=tests"></a>
+  <a href="https://github.com/esketids/whisper-subs/blob/main/LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/github/license/esketids/whisper-subs?style=flat-square"></a>
+  <a href="https://github.com/esketids/whisper-subs/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/esketids/whisper-subs?style=flat-square"></a>
+  <a href="https://codecov.io/gh/esketids/whisper-subs"><img alt="Coverage" src="https://img.shields.io/codecov/c/github/esketids/whisper-subs?style=flat-square"></a>
 </p>
 
 ---
@@ -106,11 +106,11 @@ hide:
 
 ## Getting help
 
-- Something broken: read [Diagnostics](diagnostics.md), then open an [issue](https://github.com/GeiserX/whisper-subs/issues) with what it asks for.
-- A security problem: follow the [security policy](https://github.com/GeiserX/whisper-subs/blob/main/SECURITY.md), never a public issue.
-- What is planned: the [roadmap on GitHub](https://github.com/GeiserX/whisper-subs/blob/main/ROADMAP.md). What changed: the [releases](https://github.com/GeiserX/whisper-subs/releases).
-- The plugin catalog URL for Jellyfin is `https://geiserx.github.io/whisper-subs/manifest.json`.
+- Something broken: read [Diagnostics](diagnostics.md), then open an [issue](https://github.com/esketids/whisper-subs/issues) with what it asks for.
+- A security problem: follow the [security policy](https://github.com/esketids/whisper-subs/blob/main/SECURITY.md), never a public issue.
+- What is planned: the [roadmap on GitHub](https://github.com/esketids/whisper-subs/blob/main/ROADMAP.md). What changed: the [releases](https://github.com/esketids/whisper-subs/releases).
+- The plugin catalog URL for Jellyfin is `https://raw.githubusercontent.com/esketids/whisper-subs/main/manifest.json`.
 
 ## License
 
-WhisperSubs is free software under the [GPL-3.0-or-later](https://github.com/GeiserX/whisper-subs/blob/main/LICENSE) license. It runs [whisper.cpp](https://github.com/ggerganov/whisper.cpp).
+WhisperSubs is free software under the [GPL-3.0-or-later](https://github.com/esketids/whisper-subs/blob/main/LICENSE) license. It runs [whisper.cpp](https://github.com/ggerganov/whisper.cpp).

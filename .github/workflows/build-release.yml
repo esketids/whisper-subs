@@ -270,17 +270,17 @@ jobs:
             --arg timestamp "$TIMESTAMP" \
             '{
               category: "Subtitles",
-              changelog: "See https://github.com/GeiserX/whisper-subs/releases",
-              description: "Automated subtitle generation for Jellyfin using local Whisper AI models.",
+              changelog: "See https://github.com/esketids/whisper-subs/releases",
+              description: "Forked WhisperSubs with OpenRouter compatibility, multi-GPU CUDA round-robin, and scalable local concurrency.",
               guid: "97124bd9-c8cd-4a53-a213-e593aa3fef52",
               name: "WhisperSubs",
-              overview: "Generate subtitles using local or remote Whisper workers.",
-              owner: "GeiserX",
+              overview: "Generate subtitles using local or remote Whisper workers (esketids fork).",
+              owner: "esketids",
               targetAbi: "10.11.0.0",
               timestamp: $timestamp,
               version: $version,
               status: "Active",
-              autoUpdate: true,
+              autoUpdate: false,
               imagePath: "",
               assemblies: ["WhisperSubs.dll"]
             }' > release/meta.json
@@ -318,7 +318,7 @@ jobs:
             --arg ver "$VERSION" \
             --arg cs "$CHECKSUM" \
             --arg ts "$TIMESTAMP" \
-            '{version: $ver, changelog: "See https://github.com/GeiserX/whisper-subs/releases", targetAbi: "10.11.0.0", sourceUrl: "https://github.com/GeiserX/whisper-subs/releases/download/v\($ver)/WhisperSubs_\($ver).zip", checksum: $cs, timestamp: $ts}')
+            '{version: $ver, changelog: "See https://github.com/esketids/whisper-subs/releases", targetAbi: "10.11.0.0", sourceUrl: "https://github.com/esketids/whisper-subs/releases/download/v\($ver)/WhisperSubs_\($ver).zip", checksum: $cs, timestamp: $ts}')
 
           # Accumulate from the catalog attached to the PREVIOUS release. The
           # committed copy only seeds the very first run: basing every release
@@ -343,9 +343,9 @@ jobs:
             jq -n --argjson entry "$NEW_ENTRY" '[{
               guid: "97124bd9-c8cd-4a53-a213-e593aa3fef52",
               name: "WhisperSubs",
-              description: "Automated subtitle generation for Jellyfin using local Whisper AI models.",
-              overview: "Generate subtitles for your media library using local speech-to-text AI (whisper.cpp). Supports CPU and GPU-accelerated transcription. All processing happens locally on your server.",
-              owner: "GeiserX",
+              description: "Forked WhisperSubs with OpenRouter compatibility, multi-GPU CUDA round-robin, and scalable local concurrency.",
+              overview: "Generate subtitles using local or remote Whisper workers (esketids fork).",
+              owner: "esketids",
               category: "Subtitles",
               versions: [$entry]
             }]' > manifest.json

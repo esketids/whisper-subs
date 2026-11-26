@@ -72,7 +72,11 @@ namespace WhisperSubs.Controller.Workers
                         url: config.RemoteWhisperApiUrl,
                         key: (config.RemoteWhisperApiKey ?? string.Empty).Trim(),
                         model: config.RemoteWhisperModel,
-                        maxConcurrency: 1, costWeight: 0, translateTargets: WorkerTargets.EnglishOnly,
+                        maxConcurrency: 1, costWeight: 0,
+                        translateTargets: RemoteWhisperProvider.IsOpenRouterHost(
+                            RemoteWhisperProvider.NormalizeBaseUrl(config.RemoteWhisperApiUrl))
+                            ? WorkerTargets.None
+                            : WorkerTargets.EnglishOnly,
                         dialect: WorkerDialect.OpenAi,
                         maxUploadBytes: 0, uploadCodec: null,
                         config: config, loggerFactory: loggerFactory));

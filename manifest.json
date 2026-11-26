@@ -12,8 +12,8 @@
         "changelog": "See https://github.com/esketids/whisper-subs/releases",
         "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/esketids/whisper-subs/releases/download/v4.18.0.0/WhisperSubs_4.18.0.0.zip",
-        "checksum": "4a74785aeef51f323f987867cdcf8c53",
-        "timestamp": "2026-11-26T17:55:00Z"
+        "checksum": "0256e4dfb05e246b53be87074c5f3c83",
+        "timestamp": "2026-11-26T10:16:14Z"
       }
     ]
   }

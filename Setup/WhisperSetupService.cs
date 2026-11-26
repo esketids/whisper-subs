@@ -760,7 +760,7 @@ namespace WhisperSubs.Setup
             var assetName = BinaryCatalog.GetAssetName(platform, variant);
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) assetName += ".exe";
 
-            var url = $"https://github.com/GeiserX/whisper-subs/releases/download/v{version}/{assetName}";
+            var url = $"https://github.com/esketids/whisper-subs/releases/download/v{version}/{assetName}";
 
             _logger.LogInformation("Downloading whisper-cli from {Url} for platform {Platform}", url, platform);
 
@@ -850,17 +850,19 @@ namespace WhisperSubs.Setup
 
             try
             {
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = binaryPath,
+                    Arguments = "--help",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                Providers.HostEngineGates.ApplyVulkanDevice(startInfo);
                 using var process = new System.Diagnostics.Process
                 {
-                    StartInfo = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = binaryPath,
-                        Arguments = "--help",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
+                    StartInfo = startInfo
                 };
 
                 process.Start();
@@ -947,17 +949,19 @@ namespace WhisperSubs.Setup
         {
             try
             {
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = binaryPath,
+                    Arguments = "--help",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                Providers.HostEngineGates.ApplyVulkanDevice(startInfo);
                 using var process = new System.Diagnostics.Process
                 {
-                    StartInfo = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = binaryPath,
-                        Arguments = "--help",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    }
+                    StartInfo = startInfo
                 };
 
                 process.Start();

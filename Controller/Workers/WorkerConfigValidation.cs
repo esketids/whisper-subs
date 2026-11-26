@@ -42,6 +42,10 @@ namespace WhisperSubs.Controller.Workers
             if (WorkerDialect.IsHostAssisted(worker.Dialect)
                 && worker.TranslateTargets is { Count: > 0 })
                 return (false, "A Qwen3-ASR or akou server cannot translate. Leave its translation targets blank.");
+            if (Providers.RemoteWhisperProvider.IsOpenRouterHost(
+                    Providers.RemoteWhisperProvider.NormalizeBaseUrl(worker.ApiUrl))
+                && worker.TranslateTargets is { Count: > 0 })
+                return (false, "OpenRouter does not provide /v1/audio/translations. Leave its translation targets blank.");
             if (worker.TranslateTargets is { Count: > 0 })
             {
                 var invalid = worker.TranslateTargets

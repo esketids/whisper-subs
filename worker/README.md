@@ -351,4 +351,4 @@ docker build -t drumsergio/whisper-subs-worker:0.1.0 worker/
 
 ---
 
-*Part of [WhisperSubs](https://github.com/GeiserX/whisper-subs) — GPL-3.0.*
+*Part of [WhisperSubs](https://github.com/esketids/whisper-subs) — GPL-3.0.*

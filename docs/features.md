@@ -44,7 +44,7 @@ description: Every feature, the prerequisites, output files, subtitle modes, mod
 1. In Jellyfin, go to **Dashboard** > **Plugins** > **Repositories**.
 2. Add a repository with this URL:
    ```
-   https://geiserx.github.io/whisper-subs/manifest.json
+   https://raw.githubusercontent.com/esketids/whisper-subs/main/manifest.json
    ```
 3. Go to **Catalog**, find **WhisperSubs**, and click **Install**.
 4. Restart Jellyfin.
@@ -109,7 +109,7 @@ Nine models are offered on the settings page. The default is **Large V3 Turbo (Q
 
 ## Distributed transcription
 
-By default everything runs on this Jellyfin server, one job at a time. Expand **Worker Pool (Optional / Advanced)** to add OpenAI-compatible endpoints: another box with a GPU, a NAS, or a hosted API. The plugin extracts audio locally and sends it over HTTP, always preferring workers with a cost weight of `0` and bursting to a paid one only when the free ones are saturated. [`worker/`](https://github.com/GeiserX/whisper-subs/blob/main/worker/README.md) is a ready-to-run whisper.cpp + Vulkan worker image. Setup, upload-size caps and provider quirks are covered in [Remote workers](remote-workers.md).
+By default everything runs on this Jellyfin server, one job at a time. Expand **Worker Pool (Optional / Advanced)** to add OpenAI-compatible endpoints: another box with a GPU, a NAS, or a hosted API. The plugin extracts audio locally and sends it over HTTP, always preferring workers with a cost weight of `0` and bursting to a paid one only when the free ones are saturated. [`worker/`](https://github.com/esketids/whisper-subs/blob/main/worker/README.md) is a ready-to-run whisper.cpp + Vulkan worker image. Setup, upload-size caps and provider quirks are covered in [Remote workers](remote-workers.md).
 
 ## Settings
 

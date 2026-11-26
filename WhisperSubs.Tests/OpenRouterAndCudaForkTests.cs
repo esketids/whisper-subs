@@ -10,6 +10,9 @@ namespace WhisperSubs.Tests;
 public class OpenRouterAndCudaForkTests
 {
     [Theory]
+    [InlineData("https://openrouter.ai", "https://openrouter.ai/api")]
+    [InlineData("https://openrouter.ai/", "https://openrouter.ai/api")]
+    [InlineData("https://openrouter.ai/v1", "https://openrouter.ai/api")]
     [InlineData("https://openrouter.ai/api", "https://openrouter.ai/api")]
     [InlineData("https://openrouter.ai/api/", "https://openrouter.ai/api")]
     [InlineData("https://openrouter.ai/api/v1", "https://openrouter.ai/api")]
@@ -34,6 +37,8 @@ public class OpenRouterAndCudaForkTests
     }
 
     [Theory]
+    [InlineData("", "https://openrouter.ai/api", "openai/whisper-large-v3")]
+    [InlineData("Systran/faster-whisper-large-v3", "https://openrouter.ai/api", "openai/whisper-large-v3")]
     [InlineData("whisper-1", "https://openrouter.ai/api", "openai/whisper-1")]
     [InlineData("whisper-large-v3-turbo", "https://openrouter.ai/api", "openai/whisper-large-v3-turbo")]
     [InlineData("openai/whisper-large-v3", "https://openrouter.ai/api", "openai/whisper-large-v3")]
@@ -104,5 +109,35 @@ public class OpenRouterAndCudaForkTests
         var worker = new LocalTranscriptionWorker(provider, () => cfg, new CanaryInstallCheck(_ => false), _ => null);
 
         Assert.Equal(4, worker.Capabilities.MaxConcurrency);
+    }
+
+    [Fact]
+    public void OpenRouterWorkerRow_IsTranscribeOnlyInWorkerPoolAndValidation()
+    {
+        var withEn = new WhisperWorker
+        {
+            ApiUrl = "https://openrouter.ai/api/v1",
+            ApiKey = "sk-or-test",
+            Model = "openai/whisper-large-v3",
+            CanTranslate = true,
+            TranslateTargets = ["en"]
+        };
+
+        Assert.Empty(WorkerTargets.ForRow(withEn));
+        var (okWithEn, errWithEn) = WorkerConfigValidation.Validate(withEn);
+        Assert.False(okWithEn);
+        Assert.Contains("OpenRouter", errWithEn);
+
+        var transcribeOnly = new WhisperWorker
+        {
+            ApiUrl = "https://openrouter.ai/api",
+            ApiKey = "sk-or-test",
+            Model = "",
+            CanTranslate = false,
+            TranslateTargets = []
+        };
+
+        Assert.Empty(WorkerTargets.ForRow(transcribeOnly));
+        Assert.True(WorkerConfigValidation.Validate(transcribeOnly).Ok);
     }
 }

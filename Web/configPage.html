@@ -54,7 +54,7 @@
                 <!-- Whisper Engine Management -->
                 <div style="display:flex; align-items:baseline; gap:0.8em;">
                     <h2 style="margin:0;">Whisper Engine</h2>
-                    <a href="https://geiserx.github.io/whisper-subs/docs/setup/" target="_blank" rel="noopener noreferrer"
+                    <a href="https://github.com/esketids/whisper-subs/blob/main/docs/docs/setup.md" target="_blank" rel="noopener noreferrer"
                        style="font-size:0.85em; color:#52B54B; text-decoration:none;">Setup guide &rarr;</a>
                 </div>
 
@@ -606,8 +606,8 @@
                             <div class="fieldDescription">A Vulkan device index (0 is the first), or several separated by commas, passed to the engines as GGML_VK_VISIBLE_DEVICES. Empty lets the engine pick its first GPU. This cannot make an SR-IOV virtual function safe: pass only the physical function into the container. <strong>Empty by default.</strong></div>
                         </div>
                         <div class="inputContainer">
-                            <input is="emby-input" type="text" id="txtCudaDevices" label="CUDA devices for whisper.cpp and crispasr (multi-GPU)" placeholder="automatic (e.g. 0,1 or 0,1,2)" />
-                            <div class="fieldDescription">Comma-separated NVIDIA CUDA GPU indices (e.g. <code>0,1</code> or <code>0,1,2</code>) round-robined per engine process via <code>CUDA_VISIBLE_DEVICES</code>. Pair with <strong>Full-model engines at once</strong> to run parallel GPU workers while leaving other GPUs free for NVENC. <strong>Empty by default.</strong></div>
+                            <input is="emby-input" type="text" id="txtCudaDevices" label="CUDA devices for whisper.cpp and crispasr (multi-GPU)" placeholder="automatic (e.g. 0,1 or GPU-...)" />
+                            <div class="fieldDescription">Comma-separated NVIDIA CUDA GPU indices or UUIDs (e.g. <code>0,1</code> or <code>GPU-...,GPU-...</code>) round-robined per engine process via <code>CUDA_VISIBLE_DEVICES</code>. Pair with <strong>Full-model engines at once</strong> to run parallel GPU workers while leaving other GPUs free for NVENC. <strong>Empty by default.</strong></div>
                         </div>
                         <div class="inputContainer">
                             <input is="emby-input" type="number" id="numMaxFullModelEngines" label="Full-model engines at once" min="1" max="8" step="1" />
@@ -904,14 +904,14 @@
 
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="txtRemoteWhisperApiUrl">Remote API URL</label>
-                            <input type="text" id="txtRemoteWhisperApiUrl" name="RemoteWhisperApiUrl" class="emby-input" placeholder="http://192.168.1.100:8000" />
-                            <div class="fieldDescription">URL of an OpenAI-compatible Whisper API (e.g. faster-whisper-server, Speaches). When set, audio is sent to this server instead of running whisper locally. Leave empty to use local whisper-cli.</div>
+                            <input type="text" id="txtRemoteWhisperApiUrl" name="RemoteWhisperApiUrl" class="emby-input" placeholder="http://192.168.1.100:8000 or https://openrouter.ai/api" />
+                            <div class="fieldDescription">URL of an OpenAI-compatible Whisper API (e.g. faster-whisper-server, Speaches, or <code>https://openrouter.ai/api</code>). When set, audio is sent to this server instead of running whisper locally. Leave empty to use local whisper-cli.</div>
                         </div>
 
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="txtRemoteWhisperModel">Remote Model Name</label>
                             <input type="text" id="txtRemoteWhisperModel" name="RemoteWhisperModel" class="emby-input" placeholder="Systran/faster-whisper-large-v3" />
-                            <div class="fieldDescription">Model identifier to request from the remote API. For Speaches: a Hugging Face model ID. For OpenAI: "whisper-1".</div>
+                            <div class="fieldDescription">Model identifier to request from the remote API. For Speaches: a Hugging Face model ID. For OpenAI: <code>whisper-1</code>. For OpenRouter: a namespaced slug such as <code>openai/whisper-large-v3</code> or <code>openai/whisper-large-v3-turbo</code>.</div>
                         </div>
 
                         <div class="inputContainer">
@@ -3417,15 +3417,15 @@
                         'Name', 'text', 'wkName', { placeholder: 'e.g. GPU box', maxlength: '128' },
                         w.Name || '', 'A label to recognise this worker. Optional.'));
                     row.appendChild(WhisperSubsConfig._workerField(
-                        'Endpoint URL', 'text', 'wkUrl', { placeholder: 'http://host:port' },
-                        w.ApiUrl || '', 'Base URL of an OpenAI-compatible Whisper server. No /v1 suffix.'));
+                        'Endpoint URL', 'text', 'wkUrl', { placeholder: 'http://host:port or https://openrouter.ai/api' },
+                        w.ApiUrl || '', 'Base URL of an OpenAI-compatible Whisper server (e.g. http://host:9010 or https://openrouter.ai/api). Trailing /v1 paths are normalized automatically.'));
                     row.appendChild(WhisperSubsConfig._workerField(
                         'API key (optional)', 'password', 'wkKey',
                         { autocomplete: 'new-password', maxlength: '256', spellcheck: 'false' },
                         w.ApiKey || '', 'Bearer token, if the server needs one. Leave blank for unauthenticated local servers.'));
                     row.appendChild(WhisperSubsConfig._workerField(
-                        'Model (optional)', 'text', 'wkModel', { placeholder: 'server default', maxlength: '256' },
-                        w.Model || '', 'Model to request. Blank uses the worker default.'));
+                        'Model (optional)', 'text', 'wkModel', { placeholder: 'server default (or openai/whisper-large-v3)', maxlength: '256' },
+                        w.Model || '', 'Model to request. Blank uses the worker default (openai/whisper-large-v3 on OpenRouter). On OpenRouter use a namespaced slug like openai/whisper-large-v3-turbo or openai/whisper-1.'));
                     row.appendChild(WhisperSubsConfig._workerField(
                         'Max concurrency', 'number', 'wkConcurrency', { min: '1', max: '64', step: '1', placeholder: '1' },
                         (w.MaxConcurrency != null && w.MaxConcurrency >= 1) ? w.MaxConcurrency : '',
@@ -3438,7 +3438,7 @@
                     row.appendChild(WhisperSubsConfig._workerField(
                         'Max upload size (MB)', 'number', 'wkMaxUpload', { min: '0', step: '1', placeholder: '0 = unlimited' },
                         (w.MaxUploadBytes != null && w.MaxUploadBytes > 0) ? Math.round(w.MaxUploadBytes / 1000000) : '',
-                        'Largest file this endpoint accepts. 0 (default) = unlimited. OpenAI and Groq are 25 on both tiers (the 100 MB Groq limit applies only to URL-fetched audio, which is not used here). Oversized titles then fail fast with a clear message instead of a bare HTTP 413.'));
+                        'Largest file this endpoint accepts. 0 (default) = unlimited. OpenAI, Groq, and OpenRouter direct uploads are capped at 25 MB. Oversized titles then fail fast with a clear message instead of a bare HTTP 413.'));
                     row.appendChild(WhisperSubsConfig._workerSelect(
                         'Upload format', 'wkUploadCodec',
                         [['wav', 'WAV (default, uncompressed)'], ['flac', 'FLAC (lossless, ~half)'], ['opus', 'Opus 24k (~a tenth)']],
@@ -3449,7 +3449,7 @@
                         'Dialect', 'wkDialect',
                         [['openai', 'OpenAI-compatible'], ['crispasr', 'CrispASR server (Canary)'], ['crispasr-qwen3', 'CrispASR server (Qwen3-ASR, transcribe only)'], ['akou', 'akou server (low-priority jobs)']],
                         WhisperSubsConfig.normalizeDialect(w.Dialect),
-                        'OpenAI-compatible covers whisper-server, OpenAI and Groq. CrispASR server (Canary) is crispasr --server with the Canary model, for the extra translation targets. CrispASR server (Qwen3-ASR) is crispasr --server with a Qwen3-ASR model: it only transcribes, cues are cut from its word timestamps, and this server\'s Whisper detects languages for it.'));
+                        'OpenAI-compatible covers whisper-server, OpenAI, Groq, and OpenRouter (OpenRouter auto-negotiates verbose_json). CrispASR server (Canary) is crispasr --server with the Canary model, for the extra translation targets. CrispASR server (Qwen3-ASR) is crispasr --server with a Qwen3-ASR model: it only transcribes, cues are cut from its word timestamps, and this server\'s Whisper detects languages for it.'));
                     // akou rows only: job priority, seconds of audio per job, and the languages[] bound.
                     var akouFields = document.createElement('div');
                     akouFields.className = 'wkAkouFields';
@@ -3474,19 +3474,35 @@
                     toggleAkouFields();
 
                     // Rows saved before this field existed carry only CanTranslate: migrate it to "en" or nothing.
-                    var targetsValue = (w.TranslateTargets && w.TranslateTargets.length)
-                        ? w.TranslateTargets.join(', ')
-                        : (w.CanTranslate !== false ? 'en' : '');
+                    var isNewOpenRouter = !w.ApiUrl ? false : WhisperSubsConfig._isOpenRouterUrl(w.ApiUrl);
+                    var targetsValue = isNewOpenRouter
+                        ? ''
+                        : ((w.TranslateTargets && w.TranslateTargets.length)
+                            ? w.TranslateTargets.join(', ')
+                            : (w.CanTranslate !== false ? 'en' : ''));
                     row.appendChild(WhisperSubsConfig._workerField(
-                        'Translation targets', 'text', 'wkTargets', { placeholder: 'en', maxlength: '256', spellcheck: 'false' },
+                        'Translation targets', 'text', 'wkTargets', { placeholder: 'en (leave blank for OpenRouter)', maxlength: '256', spellcheck: 'false' },
                         targetsValue,
-                        'Comma-separated language codes this worker translates into. en is Whisper translation. Canary codes (nl, de, fr, ...) need the CrispASR dialect. Leave blank for a transcribe-only worker.'));
+                        'Comma-separated language codes this worker translates into. en is Whisper translation. Canary codes (nl, de, fr, ...) need the CrispASR dialect. Leave blank for a transcribe-only worker (required for OpenRouter, Qwen3-ASR, and akou).'));
                     row.appendChild(WhisperSubsConfig._workerCheckbox('wkEnabled', 'Enabled', w.Enabled !== false));
+
+                    var targetsInput = row.querySelector('.wkTargets');
+                    if (targetsInput) {
+                        targetsInput.addEventListener('input', function () {
+                            targetsInput.setAttribute('data-user-edited', '1');
+                        });
+                    }
 
                     // Re-check for duplicate endpoints whenever this row's URL or Enabled state changes.
                     var dupUrlInput = row.querySelector('.wkUrl');
                     if (dupUrlInput) {
                         dupUrlInput.addEventListener('input', function () {
+                            if (WhisperSubsConfig._isOpenRouterUrl(dupUrlInput.value)
+                                && targetsInput
+                                && targetsInput.getAttribute('data-user-edited') !== '1'
+                                && (targetsInput.value || '').trim().toLowerCase() === 'en') {
+                                targetsInput.value = '';
+                            }
                             WhisperSubsConfig.updateWorkerDuplicateWarning(row.closest('[data-role="page"]'));
                         });
                     }
@@ -3611,6 +3627,14 @@
                     return container;
                 },
 
+                _isOpenRouterUrl: function (apiUrl) {
+                    var trimmed = (apiUrl == null ? '' : ('' + apiUrl)).trim();
+                    var m = /^https?:\/\/([^\/:?#]+)/i.exec(trimmed);
+                    if (!m) return false;
+                    var host = m[1].toLowerCase();
+                    return host === 'openrouter.ai' || host.endsWith('.openrouter.ai');
+                },
+
                 // Splits a worker's "Translation targets" field: trimmed, lower-case, no duplicates, input order.
                 // Mirrors WorkerTargets.Parse on the server.
                 normalizeDialect: function (value) {
@@ -3644,6 +3668,9 @@
                         }
                         if ((w.Dialect === 'crispasr-qwen3' || w.Dialect === 'akou') && w.TranslateTargets.length) {
                             return label + ': a Qwen3-ASR or akou server cannot translate. Leave its translation targets blank.';
+                        }
+                        if (WhisperSubsConfig._isOpenRouterUrl(w.ApiUrl) && w.TranslateTargets.length) {
+                            return label + ': OpenRouter does not provide /v1/audio/translations. Leave its translation targets blank.';
                         }
                         if (w.Priority < -10 || w.Priority > 10) {
                             return label + ': the akou job priority must be from -10 to 10.';

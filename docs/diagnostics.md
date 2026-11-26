@@ -248,7 +248,7 @@ This reuses your existing session token, and `ApiClient.getUrl` builds the path 
 
 ## What to include when reporting a bug
 
-The [bug report form](https://github.com/GeiserX/whisper-subs/issues/new?template=bug_report.yml) asks for:
+The [bug report form](https://github.com/esketids/whisper-subs/issues/new?template=bug_report.yml) asks for:
 
 - **Plugin version**, from **Dashboard → Plugins → WhisperSubs**.
 - **Jellyfin version**.

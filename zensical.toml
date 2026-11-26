@@ -3,10 +3,10 @@
 
 [project]
 site_name = "WhisperSubs"
-site_url = "https://geiserx.github.io/whisper-subs/"
+site_url = "https://esketids.github.io/whisper-subs/"
 site_description = "Local AI subtitle generation for Jellyfin. Audio never leaves your server unless you say so."
-repo_url = "https://github.com/GeiserX/whisper-subs"
-repo_name = "GeiserX/whisper-subs"
+repo_url = "https://github.com/esketids/whisper-subs"
+repo_name = "esketids/whisper-subs"
 edit_uri = "edit/main/docs/"
 # A warning is a broken link or a broken anchor; both fail the build. What
 # Zensical does not check (a page in no nav entry, a nav entry for a missing
@@ -89,7 +89,7 @@ toggle.name = "Switch to dark mode"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/github"
-link = "https://github.com/GeiserX/whisper-subs"
+link = "https://github.com/esketids/whisper-subs"
 
 [[project.extra.social]]
 icon = "fontawesome/brands/docker"
