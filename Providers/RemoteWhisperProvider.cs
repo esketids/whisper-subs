@@ -219,10 +219,12 @@ namespace WhisperSubs.Providers
             }
         }
 
+        internal const string DefaultOpenRouterModel = "google/gemini-2.5-flash";
+
         internal static string NormalizeBaseUrl(string? apiUrl)
         {
             var trimmed = (apiUrl ?? string.Empty).Trim().TrimEnd('/');
-            foreach (var suffix in new[] { "/v1/audio/transcriptions", "/v1/audio/translations", "/v1" })
+            foreach (var suffix in new[] { "/v1/audio/transcriptions", "/v1/audio/translations", "/v1/chat/completions", "/v1" })
             {
                 if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                 {
@@ -250,17 +252,273 @@ namespace WhisperSubs.Providers
             if (IsOpenRouterHost(apiUrl))
             {
                 if (m.Length == 0
-                    || string.Equals(m, "Systran/faster-whisper-large-v3", StringComparison.OrdinalIgnoreCase))
+                    || string.Equals(m, "Systran/faster-whisper-large-v3", StringComparison.OrdinalIgnoreCase)
+                    || m.StartsWith("whisper", StringComparison.OrdinalIgnoreCase)
+                    || m.StartsWith("openai/whisper", StringComparison.OrdinalIgnoreCase))
                 {
-                    return "openai/whisper-large-v3";
-                }
-                if (!m.Contains('/', StringComparison.Ordinal)
-                    && m.StartsWith("whisper", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "openai/" + m;
+                    return DefaultOpenRouterModel;
                 }
             }
             return m;
+        }
+
+        internal static string InputAudioFormatForCodec(string? codec) => RemoteUploadFormat.Normalize(codec) switch
+        {
+            RemoteUploadFormat.Flac => "flac",
+            RemoteUploadFormat.Opus => "ogg",
+            _ => string.Equals(codec?.Trim(), "mp3", StringComparison.OrdinalIgnoreCase) ? "mp3" : "wav",
+        };
+
+        internal static string BuildOpenRouterTranscriptionPrompt(string? language, bool translate, string? targetLanguage = null)
+        {
+            var normalizedLang = (language ?? string.Empty).Trim();
+            var knownLang = normalizedLang.Length > 0 && !string.Equals(normalizedLang, "auto", StringComparison.OrdinalIgnoreCase);
+            var target = (targetLanguage ?? string.Empty).Trim();
+
+            if (translate || target.Length > 0)
+            {
+                var effectiveTarget = target.Length == 0 || string.Equals(target, "en", StringComparison.OrdinalIgnoreCase)
+                    ? "English"
+                    : target;
+                var sourceHint = knownLang ? $" The spoken audio is in '{normalizedLang}'." : string.Empty;
+                return $"Transcribe this audio and translate all spoken dialogue into {effectiveTarget}.{sourceHint} " +
+                       "Output ONLY valid SubRip (.srt) subtitle cues with accurate HH:MM:SS,mmm --> HH:MM:SS,mmm timestamps. " +
+                       "Do not include markdown code fences, commentary, or extra text. If there is no speech, output NO_SPEECH.";
+            }
+
+            var langInstruction = knownLang
+                ? $"Transcribe this audio in '{normalizedLang}'."
+                : "Transcribe this audio in its original spoken language.";
+            return $"{langInstruction} Output ONLY valid SubRip (.srt) subtitle cues with accurate HH:MM:SS,mmm --> HH:MM:SS,mmm timestamps. " +
+                   "Do not include markdown code fences, commentary, or extra text. If there is no speech, output NO_SPEECH.";
+        }
+
+        internal static string BuildOpenRouterLanguageDetectionPrompt()
+            => "Identify the primary spoken language in this audio. " +
+               "Reply with ONLY a JSON object like {\"language\":\"en\"} using the ISO 639-1 two-letter language code, " +
+               "or {\"language\":\"unknown\"} if there is no clear speech.";
+
+        internal static string BuildOpenRouterChatPayload(string model, string prompt, byte[] audioBytes, string format)
+            => BuildOpenRouterChatPayload(model, prompt, Convert.ToBase64String(audioBytes), format);
+
+        internal static string BuildOpenRouterChatPayload(string model, string prompt, string base64Audio, string format)
+        {
+            var payload = new
+            {
+                model,
+                messages = new object[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = new object[]
+                        {
+                            new { type = "text", text = prompt },
+                            new
+                            {
+                                type = "input_audio",
+                                input_audio = new
+                                {
+                                    data = base64Audio,
+                                    format
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            return JsonSerializer.Serialize(payload);
+        }
+
+        internal static string ExtractOpenRouterMessageContent(string chatJsonResponse)
+        {
+            if (string.IsNullOrWhiteSpace(chatJsonResponse))
+            {
+                throw new InvalidOperationException("OpenRouter API returned an empty response.");
+            }
+
+            JsonDocument document;
+            try
+            {
+                document = JsonDocument.Parse(chatJsonResponse.TrimStart('\uFEFF', ' ', '\t', '\r', '\n'));
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException("OpenRouter API returned malformed JSON instead of a chat completion.", ex);
+            }
+
+            using (document)
+            {
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    throw new InvalidOperationException("OpenRouter API returned an unexpected JSON root.");
+                }
+
+                if (root.TryGetProperty("error", out var errorElement) && errorElement.ValueKind == JsonValueKind.Object)
+                {
+                    var errMsg = errorElement.TryGetProperty("message", out var msgProp) && msgProp.ValueKind == JsonValueKind.String
+                        ? msgProp.GetString()
+                        : errorElement.GetRawText();
+                    throw new InvalidOperationException($"OpenRouter API returned an error: {errMsg}");
+                }
+
+                if (!root.TryGetProperty("choices", out var choices)
+                    || choices.ValueKind != JsonValueKind.Array
+                    || choices.GetArrayLength() == 0)
+                {
+                    throw new InvalidOperationException("OpenRouter API response did not include any choices.");
+                }
+
+                var first = choices[0];
+                if (first.ValueKind != JsonValueKind.Object
+                    || !first.TryGetProperty("message", out var message)
+                    || message.ValueKind != JsonValueKind.Object
+                    || !message.TryGetProperty("content", out var content))
+                {
+                    throw new InvalidOperationException("OpenRouter API choice did not include message.content.");
+                }
+
+                if (content.ValueKind == JsonValueKind.String)
+                {
+                    return content.GetString() ?? string.Empty;
+                }
+                if (content.ValueKind == JsonValueKind.Null)
+                {
+                    return string.Empty;
+                }
+                if (content.ValueKind == JsonValueKind.Array)
+                {
+                    var sb = new StringBuilder();
+                    foreach (var part in content.EnumerateArray())
+                    {
+                        if (part.ValueKind == JsonValueKind.Object
+                            && part.TryGetProperty("text", out var textPart)
+                            && textPart.ValueKind == JsonValueKind.String)
+                        {
+                            if (sb.Length > 0) sb.Append('\n');
+                            sb.Append(textPart.GetString());
+                        }
+                    }
+                    return sb.ToString();
+                }
+
+                throw new InvalidOperationException("OpenRouter API message.content had an unexpected JSON type.");
+            }
+        }
+
+        private static readonly Regex MarkdownFenceBlockRegex = new(
+            @"```[a-zA-Z0-9_-]*[ \t]*\r?\n([\s\S]*?)```",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        internal static string StripMarkdownCodeFences(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return string.Empty;
+            }
+
+            var normalized = text.TrimStart('\uFEFF', ' ', '\t', '\r', '\n')
+                .Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Replace('\r', '\n')
+                .Trim();
+
+            var match = MarkdownFenceBlockRegex.Match(normalized);
+            if (match.Success)
+            {
+                return match.Groups[1].Value.Trim();
+            }
+
+            if (normalized.StartsWith("```", StringComparison.Ordinal))
+            {
+                var firstNewline = normalized.IndexOf('\n');
+                if (firstNewline >= 0)
+                {
+                    normalized = normalized[(firstNewline + 1)..];
+                }
+                else
+                {
+                    return string.Empty;
+                }
+            }
+            if (normalized.EndsWith("```", StringComparison.Ordinal))
+            {
+                normalized = normalized[..^3];
+            }
+
+            return normalized.Trim();
+        }
+
+        private static readonly Regex LlmSrtTimingLineRegex = new(
+            @"(?m)^\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[.,](\d{1,3})\s*-->\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[.,](\d{1,3})\s*$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        internal static string NormalizeLlmSrtTimestamps(string srt)
+        {
+            if (string.IsNullOrWhiteSpace(srt)) return string.Empty;
+            return LlmSrtTimingLineRegex.Replace(srt, m =>
+            {
+                var sh = m.Groups[1].Success ? int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) : 0;
+                var sm = int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
+                var ss = int.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture);
+                var sms = m.Groups[4].Value.PadRight(3, '0');
+                var eh = m.Groups[5].Success ? int.Parse(m.Groups[5].Value, CultureInfo.InvariantCulture) : 0;
+                var em = int.Parse(m.Groups[6].Value, CultureInfo.InvariantCulture);
+                var es = int.Parse(m.Groups[7].Value, CultureInfo.InvariantCulture);
+                var ems = m.Groups[8].Value.PadRight(3, '0');
+                return string.Create(CultureInfo.InvariantCulture,
+                    $"{sh:00}:{sm:00}:{ss:00},{sms} --> {eh:00}:{em:00}:{es:00},{ems}");
+            });
+        }
+
+        internal static bool IsNoSpeechMarker(string? text)
+        {
+            var t = (text ?? string.Empty).Trim().TrimEnd('.', '!', '?').Trim();
+            return t.Length == 0
+                || string.Equals(t, "NO_SPEECH", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(t, "no speech", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(t, "no speech detected", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(t, "[silence]", StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static string ParseOpenRouterSrtResponse(string chatJsonResponse, double? maxDurationSeconds = null)
+        {
+            var rawContent = ExtractOpenRouterMessageContent(chatJsonResponse);
+            var stripped = StripMarkdownCodeFences(rawContent);
+            if (IsNoSpeechMarker(stripped))
+            {
+                return string.Empty;
+            }
+
+            var normalized = NormalizeLlmSrtTimestamps(stripped);
+            return RequireSrtCues(ConvertTranscriptionResponseToSrt(normalized, maxDurationSeconds), canaryTarget: null);
+        }
+
+        internal static (string Language, float Probability) ParseOpenRouterDetectionResponse(string chatJsonResponse)
+        {
+            var rawContent = ExtractOpenRouterMessageContent(chatJsonResponse);
+            var stripped = StripMarkdownCodeFences(rawContent).Trim();
+            if (stripped.Length == 0)
+            {
+                return ("auto", 0f);
+            }
+
+            if (stripped.StartsWith("{", StringComparison.Ordinal))
+            {
+                try
+                {
+                    return ParseDetectionResponse(stripped);
+                }
+                catch (JsonException)
+                {
+                    // Fall through to plain-text language normalization below.
+                }
+            }
+
+            var normalized = NormalizeLangName(stripped.Trim('"', '\'', '.', ' '));
+            return IsLanguageCode(normalized)
+                ? (normalized, UnknownDetectionProbability)
+                : ("auto", 0f);
         }
 
         [ExcludeFromCodeCoverage(Justification = "HTTP I/O; the pure deadline policy is tested in TranscriptionTimeoutTests")]
@@ -279,11 +537,6 @@ namespace WhisperSubs.Providers
             {
                 WhisperProvider.EnsureEnglishTarget(targetLanguage, Name);
             }
-            if (translate && CanaryTargetOrNull(translate, targetLanguage) == null && IsOpenRouterHost(_apiUrl))
-            {
-                throw new NotSupportedException(
-                    "OpenRouter does not provide /v1/audio/translations; use local Whisper for English translation or leave Translation targets blank on OpenRouter workers.");
-            }
             if (!File.Exists(audioPath))
             {
                 throw new FileNotFoundException($"Audio file not found: {audioPath}");
@@ -294,8 +547,11 @@ namespace WhisperSubs.Providers
                 return await TranscribeAkouJobAsync(audioPath, language, akouTranslation, cancellationToken).ConfigureAwait(false);
             }
 
+            var isOpenRouter = IsOpenRouterHost(_apiUrl);
             var canaryTarget = CanaryTargetOrNull(translate, targetLanguage);
-            var endpoint = _apiUrl + BuildTranscriptionRequest(_dialect, _model, "srt", language, translate, canaryTarget).Path;
+            var endpoint = isOpenRouter
+                ? _apiUrl + "/v1/chat/completions"
+                : _apiUrl + BuildTranscriptionRequest(_dialect, _model, "srt", language, translate, canaryTarget).Path;
 
             // SanitizeEndpoint, not the raw endpoint: an admin may legitimately paste a key into the URL
             // (Azure-style "?api-version=", proxy "?api_key="), and this line lands in jellyfin.log — the
@@ -327,6 +583,13 @@ namespace WhisperSubs.Providers
                             sourceAudioBytes, uploadBytes, _maxUploadBytes, effectiveCodec));
                 }
 
+                if (isOpenRouter)
+                {
+                    return await TranscribeOpenRouterAsync(
+                        endpoint, uploadPath, sourceAudioBytes, effectiveCodec, language, translate, targetLanguage, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 return await TranscribeUploadAsync(
                     endpoint, uploadPath, sourceAudioBytes, effectiveCodec, language, translate, canaryTarget, cancellationToken)
                     .ConfigureAwait(false);
@@ -338,6 +601,35 @@ namespace WhisperSubs.Providers
                     RemoteAudioEncoder.TryDelete(uploadPath);
                 }
             }
+        }
+
+        [ExcludeFromCodeCoverage(Justification = "HTTP/file I/O; payload and response helpers are unit-tested")]
+        private async Task<string> TranscribeOpenRouterAsync(
+            string endpoint,
+            string audioPath,
+            long sourceAudioBytes,
+            string uploadCodec,
+            string language,
+            bool translate,
+            string? targetLanguage,
+            CancellationToken cancellationToken)
+        {
+            var audioBytes = await File.ReadAllBytesAsync(audioPath, cancellationToken).ConfigureAwait(false);
+            var prompt = BuildOpenRouterTranscriptionPrompt(language, translate, targetLanguage);
+            var format = InputAudioFormatForCodec(uploadCodec);
+            var jsonPayload = BuildOpenRouterChatPayload(_model, prompt, audioBytes, format);
+            using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+            var response = await PostAudioAsync(endpoint, content, sourceAudioBytes, cancellationToken).ConfigureAwait(false);
+            var srt = ParseOpenRouterSrtResponse(response, SourceAudioDurationSeconds(sourceAudioBytes));
+            if (srt.Length == 0)
+            {
+                _logger.LogInformation("OpenRouter worker heard no speech in this audio; no cues");
+            }
+            else
+            {
+                _logger.LogInformation("OpenRouter transcription complete, received {Length} characters of SRT", srt.Length);
+            }
+            return srt;
         }
 
         [ExcludeFromCodeCoverage(Justification = "HTTP I/O; the pure deadline policy is tested in TranscriptionTimeoutTests")]
@@ -1136,6 +1428,19 @@ namespace WhisperSubs.Providers
 
             long sourceAudioBytes = new FileInfo(audioPath).Length;
 
+            if (IsOpenRouterHost(_apiUrl))
+            {
+                var audioBytes = await File.ReadAllBytesAsync(audioPath, cancellationToken).ConfigureAwait(false);
+                var payload = BuildOpenRouterChatPayload(
+                    _model, BuildOpenRouterLanguageDetectionPrompt(), audioBytes, "wav");
+                using var chatContent = new StringContent(payload, Encoding.UTF8, "application/json");
+                var chatJson = await PostAudioAsync(
+                    $"{_apiUrl}/v1/chat/completions", chatContent, sourceAudioBytes, cancellationToken).ConfigureAwait(false);
+                var (detectedLang, detectedProb) = ParseOpenRouterDetectionResponse(chatJson);
+                _logger.LogInformation("OpenRouter language detection: {Language} (p={Probability:F3})", detectedLang, detectedProb);
+                return (detectedLang, detectedProb);
+            }
+
             using var content = new MultipartFormDataContent();
             var fileContent = new StreamContent(File.OpenRead(audioPath));
             fileContent.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
@@ -1233,7 +1538,7 @@ namespace WhisperSubs.Providers
         [ExcludeFromCodeCoverage(Justification = "HTTP I/O; the pure deadline policy is tested in TranscriptionTimeoutTests")]
         // sourceAudioBytes is the UNCOMPRESSED source WAV length, which is what the deadline must scale with —
         // never the (possibly compressed) uploaded body length. See SourceAudioDurationSeconds.
-        private async Task<string> PostAudioAsync(string endpoint, MultipartFormDataContent content, long sourceAudioBytes, CancellationToken cancellationToken)
+        private async Task<string> PostAudioAsync(string endpoint, HttpContent content, long sourceAudioBytes, CancellationToken cancellationToken)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
 

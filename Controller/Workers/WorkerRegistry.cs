@@ -49,7 +49,11 @@ namespace WhisperSubs.Controller.Workers
                             name: string.IsNullOrWhiteSpace(w.Name) ? w.ApiUrl : w.Name,
                             url: w.ApiUrl,
                             key: w.ApiKey ?? string.Empty,
-                            model: string.IsNullOrWhiteSpace(w.Model) ? config.RemoteWhisperModel : w.Model,
+                            model: string.IsNullOrWhiteSpace(w.Model)
+                                ? (RemoteWhisperProvider.IsOpenRouterHost(RemoteWhisperProvider.NormalizeBaseUrl(w.ApiUrl))
+                                    ? string.Empty
+                                    : config.RemoteWhisperModel)
+                                : w.Model,
                             maxConcurrency: w.MaxConcurrency,
                             costWeight: w.CostWeight,
                             translateTargets: WorkerTargets.ForRow(w, hostEnglish),
@@ -72,11 +76,7 @@ namespace WhisperSubs.Controller.Workers
                         url: config.RemoteWhisperApiUrl,
                         key: (config.RemoteWhisperApiKey ?? string.Empty).Trim(),
                         model: config.RemoteWhisperModel,
-                        maxConcurrency: 1, costWeight: 0,
-                        translateTargets: RemoteWhisperProvider.IsOpenRouterHost(
-                            RemoteWhisperProvider.NormalizeBaseUrl(config.RemoteWhisperApiUrl))
-                            ? WorkerTargets.None
-                            : WorkerTargets.EnglishOnly,
+                        maxConcurrency: 1, costWeight: 0, translateTargets: WorkerTargets.EnglishOnly,
                         dialect: WorkerDialect.OpenAi,
                         maxUploadBytes: 0, uploadCodec: null,
                         config: config, loggerFactory: loggerFactory));

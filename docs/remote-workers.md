@@ -193,7 +193,7 @@ Enter only the base. The plugin appends the path, so a URL that already ends in 
 ### Model names
 
 - **Groq**: `whisper-large-v3`.
-- **OpenRouter**: a namespaced slug such as `openai/whisper-large-v3-turbo`. A bare `whisper-1` or a Groq-style name returns `400`.
+- **OpenRouter**: an audio-capable chat model such as `google/gemini-2.5-flash` (the default when blank or `whisper*`). OpenRouter requests route through `/v1/chat/completions` with `input_audio`.
 - **OpenAI**: `whisper-1`.
 
 ### Which response formats carry timestamps
@@ -214,7 +214,7 @@ The plugin deliberately does **not** send `timestamp_granularities[]`. The field
 Provider-specific limits:
 
 - **OpenAI**: on `/v1/audio/transcriptions`, SRT and timestamps exist on `whisper-1` only. `gpt-4o-transcribe` and `gpt-4o-mini-transcribe` accept `json` and `text` only, so they carry no timings and cannot be used for subtitles; asking either for `verbose_json` fails with `response_format 'verbose_json' is not compatible with model 'gpt-4o-transcribe'`. The separate `gpt-4o-transcribe-diarize` model answers with `diarized_json`, which WhisperSubs neither requests nor parses.
-- **OpenRouter**: has **no `/v1/audio/translations` endpoint**, so leave **Translation targets** blank for it. Timestamps are only available on its OpenAI-compatible models; models that return text without timings (Chirp, Deepgram, Nova) cannot produce synchronized subtitles at all.
+- **OpenRouter**: WhisperSubs sends base64 `input_audio` to `/api/v1/chat/completions` (defaulting to `google/gemini-2.5-flash`) and requests SRT timestamps directly, supporting both transcription and English translation (`en`). Choose an audio-capable chat model (e.g. `google/gemini-2.5-flash`).
 
 ### Upload size, in minutes of audio
 
@@ -277,14 +277,14 @@ Use a model/provider that supports response_format=verbose_json;
 plain json text cannot be synchronized.
 ```
 
-No client-side change fixes this. The model returned a transcript with no timings, and there is nothing to synchronize to. Switch that worker to a model that supports `verbose_json` with segments — `whisper-1` on OpenAI, `whisper-large-v3` on Groq, an `openai/...` slug on OpenRouter — or point the worker at self-hosted whisper.cpp instead.
+No client-side change fixes this. The model returned a transcript with no timings, and there is nothing to synchronize to. Switch that worker to a model that supports `verbose_json` with segments — `whisper-1` on OpenAI, `whisper-large-v3` on Groq — or use an audio-capable model on OpenRouter (e.g. `google/gemini-2.5-flash`), or point the worker at self-hosted whisper.cpp instead.
 
 ### Other status codes
 
 | Status | What it means and what to change |
 |---|---|
 | `301`/`302`/`307`/`308` | The endpoint redirected instead of answering. WhisperSubs never follows a redirect with your audio. Usually an SSO gateway or an http→https rewrite; point the worker at the API's final address |
-| `400` | On OpenRouter, almost always the model name. Use a namespaced slug, not a bare `whisper-1` |
+| `400` | On OpenRouter, ensure an audio-capable `/v1/chat/completions` model such as `google/gemini-2.5-flash` is configured and upload size fits the provider cap |
 | `401` | Key rejected. Check it is pasted in full, belongs to this provider and has not expired |
 | `403` | Key accepted, account not allowed. Check model access and billing on the provider's dashboard |
 | `404` | No transcription endpoint at that address. The base URL must **not** end in `/v1` |

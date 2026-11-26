@@ -617,9 +617,14 @@ namespace WhisperSubs.Api
             }
 
             var normalizedBaseUrl = Providers.RemoteWhisperProvider.NormalizeBaseUrl(worker.ApiUrl);
-            var url = normalizedBaseUrl + "/v1/audio/transcriptions";
+            var isOpenRouter = Providers.RemoteWhisperProvider.IsOpenRouterHost(normalizedBaseUrl);
+            var url = isOpenRouter
+                ? normalizedBaseUrl + "/v1/chat/completions"
+                : normalizedBaseUrl + "/v1/audio/transcriptions";
             var model = Providers.RemoteWhisperProvider.NormalizeModelForEndpoint(
-                string.IsNullOrWhiteSpace(worker.Model) ? "Systran/faster-whisper-large-v3" : worker.Model,
+                string.IsNullOrWhiteSpace(worker.Model)
+                    ? (isOpenRouter ? "" : "Systran/faster-whisper-large-v3")
+                    : worker.Model,
                 normalizedBaseUrl);
             var wav = Controller.Workers.SyntheticAudio.SilentWav16kMono(100);
 
@@ -674,6 +679,39 @@ namespace WhisperSubs.Api
                 Timeout = TimeSpan.FromSeconds(30),
                 MaxResponseContentBufferSize = 1024 * 1024
             };
+
+            async Task<(System.Net.HttpStatusCode StatusCode, string Body, System.Uri? RedirectLocation)> SendOpenRouterProbeAsync(
+                CancellationToken cancellationToken)
+            {
+                var jsonPayload = Providers.RemoteWhisperProvider.BuildOpenRouterChatPayload(
+                    model,
+                    Providers.RemoteWhisperProvider.BuildOpenRouterTranscriptionPrompt("auto", translate: false),
+                    wav,
+                    "wav");
+                using var content = new System.Net.Http.StringContent(
+                    jsonPayload, System.Text.Encoding.UTF8, "application/json");
+                using var probe = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)
+                {
+                    Content = content
+                };
+                if (!string.IsNullOrWhiteSpace(worker.ApiKey))
+                {
+                    probe.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+                        "Bearer", worker.ApiKey.Trim());
+                }
+                probe.Headers.TryAddWithoutValidation("X-OpenRouter-Title", "Jellyfin WhisperSubs");
+                probe.Headers.TryAddWithoutValidation("HTTP-Referer", "https://github.com/esketids/whisper-subs");
+
+                // SECURITY-REVIEW: the admin-supplied URL passed link-local/DNS checks above and this
+                // dedicated client disables redirects; do not replace it with the shared redirecting client.
+                using var response = await http.SendAsync(
+                    probe,
+                    System.Net.Http.HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken);
+                var body = await Providers.RemoteWhisperProvider.ReadUtf8BoundedAsync(
+                    response.Content, 1024 * 1024, cancellationToken);
+                return (response.StatusCode, body, response.Headers.Location);
+            }
 
             async Task<(System.Net.HttpStatusCode StatusCode, string Body, System.Uri? RedirectLocation)> SendProbeAsync(
                 string responseFormat, CancellationToken cancellationToken)
@@ -736,6 +774,52 @@ namespace WhisperSubs.Api
             var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
+                if (isOpenRouter)
+                {
+                    var orResponse = await SendOpenRouterProbeAsync(probeCts.Token);
+                    sw.Stop();
+                    var orStatus = (int)orResponse.StatusCode;
+                    var (orOk, orWarning, orMsg) = Controller.Workers.WorkerProbe.ClassifyProbeOutcome(
+                        reachable: true, httpStatus: orStatus, timedOut: false,
+                        redirectTarget: Controller.Workers.UpstreamErrorSanitizer.SanitizeRedirectTarget(orResponse.RedirectLocation));
+                    if (orOk && !orWarning)
+                    {
+                        string content;
+                        try
+                        {
+                            content = Providers.RemoteWhisperProvider.ExtractOpenRouterMessageContent(orResponse.Body);
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            return Ok(new
+                            {
+                                ok = false,
+                                warning = false,
+                                status = orStatus,
+                                latencyMs = sw.ElapsedMilliseconds,
+                                message = "Endpoint responded, but did not return a valid chat completion response."
+                            });
+                        }
+
+                        var stripped = Providers.RemoteWhisperProvider.StripMarkdownCodeFences(content);
+                        var normalizedSrt = Providers.RemoteWhisperProvider.NormalizeLlmSrtTimestamps(stripped);
+                        if (Providers.RemoteWhisperProvider.IsNoSpeechMarker(stripped) || !IsValidSrtProbeBody(normalizedSrt))
+                        {
+                            return Ok(new
+                            {
+                                ok = true,
+                                warning = true,
+                                status = orStatus,
+                                latencyMs = sw.ElapsedMilliseconds,
+                                message = "Endpoint is reachable and accepted the audio, but the silent probe produced no cues. Test with real speech if you need content verification."
+                            });
+                        }
+                    }
+
+                    var orMessage = (orOk && !orWarning) ? (orMsg + " (" + sw.ElapsedMilliseconds + " ms).") : orMsg;
+                    return Ok(new { ok = orOk, warning = orWarning, status = orStatus, latencyMs = sw.ElapsedMilliseconds, message = orMessage });
+                }
+
                 // Match the runtime negotiation: preserve SRT-first behavior for existing workers,
                 // start with verbose_json on OpenRouter, and retry timestamped JSON if rejected.
                 var responseFormat = Providers.RemoteWhisperProvider.DefaultResponseFormat(worker.Dialect, normalizedBaseUrl);

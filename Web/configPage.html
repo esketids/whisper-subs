@@ -911,7 +911,7 @@
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="txtRemoteWhisperModel">Remote Model Name</label>
                             <input type="text" id="txtRemoteWhisperModel" name="RemoteWhisperModel" class="emby-input" placeholder="Systran/faster-whisper-large-v3" />
-                            <div class="fieldDescription">Model identifier to request from the remote API. For Speaches: a Hugging Face model ID. For OpenAI: <code>whisper-1</code>. For OpenRouter: a namespaced slug such as <code>openai/whisper-large-v3</code> or <code>openai/whisper-large-v3-turbo</code>.</div>
+                            <div class="fieldDescription">Model identifier to request from the remote API. For Speaches: a Hugging Face model ID. For OpenAI: <code>whisper-1</code>. For OpenRouter: an audio-capable chat model such as <code>google/gemini-2.5-flash</code> (default on OpenRouter when blank or <code>whisper*</code>).</div>
                         </div>
 
                         <div class="inputContainer">
@@ -3418,14 +3418,14 @@
                         w.Name || '', 'A label to recognise this worker. Optional.'));
                     row.appendChild(WhisperSubsConfig._workerField(
                         'Endpoint URL', 'text', 'wkUrl', { placeholder: 'http://host:port or https://openrouter.ai/api' },
-                        w.ApiUrl || '', 'Base URL of an OpenAI-compatible Whisper server (e.g. http://host:9010 or https://openrouter.ai/api). Trailing /v1 paths are normalized automatically.'));
+                        w.ApiUrl || '', 'Base URL of an OpenAI-compatible server or OpenRouter (https://openrouter.ai/api). Trailing /v1 paths are normalized automatically.'));
                     row.appendChild(WhisperSubsConfig._workerField(
                         'API key (optional)', 'password', 'wkKey',
                         { autocomplete: 'new-password', maxlength: '256', spellcheck: 'false' },
                         w.ApiKey || '', 'Bearer token, if the server needs one. Leave blank for unauthenticated local servers.'));
                     row.appendChild(WhisperSubsConfig._workerField(
-                        'Model (optional)', 'text', 'wkModel', { placeholder: 'server default (or openai/whisper-large-v3)', maxlength: '256' },
-                        w.Model || '', 'Model to request. Blank uses the worker default (openai/whisper-large-v3 on OpenRouter). On OpenRouter use a namespaced slug like openai/whisper-large-v3-turbo or openai/whisper-1.'));
+                        'Model (optional)', 'text', 'wkModel', { placeholder: 'server default (or google/gemini-2.5-flash)', maxlength: '256' },
+                        w.Model || '', 'Model to request. Blank uses the worker default (google/gemini-2.5-flash on OpenRouter). On OpenRouter use an audio-capable chat model such as google/gemini-2.5-flash or google/gemini-2.5-pro.'));
                     row.appendChild(WhisperSubsConfig._workerField(
                         'Max concurrency', 'number', 'wkConcurrency', { min: '1', max: '64', step: '1', placeholder: '1' },
                         (w.MaxConcurrency != null && w.MaxConcurrency >= 1) ? w.MaxConcurrency : '',
@@ -3449,7 +3449,7 @@
                         'Dialect', 'wkDialect',
                         [['openai', 'OpenAI-compatible'], ['crispasr', 'CrispASR server (Canary)'], ['crispasr-qwen3', 'CrispASR server (Qwen3-ASR, transcribe only)'], ['akou', 'akou server (low-priority jobs)']],
                         WhisperSubsConfig.normalizeDialect(w.Dialect),
-                        'OpenAI-compatible covers whisper-server, OpenAI, Groq, and OpenRouter (OpenRouter auto-negotiates verbose_json). CrispASR server (Canary) is crispasr --server with the Canary model, for the extra translation targets. CrispASR server (Qwen3-ASR) is crispasr --server with a Qwen3-ASR model: it only transcribes, cues are cut from its word timestamps, and this server\'s Whisper detects languages for it.'));
+                        'OpenAI-compatible covers whisper-server, OpenAI, Groq, and OpenRouter (OpenRouter routes via /v1/chat/completions with input_audio). CrispASR server (Canary) is crispasr --server with the Canary model, for the extra translation targets. CrispASR server (Qwen3-ASR) is crispasr --server with a Qwen3-ASR model: it only transcribes, cues are cut from its word timestamps, and this server\'s Whisper detects languages for it.'));
                     // akou rows only: job priority, seconds of audio per job, and the languages[] bound.
                     var akouFields = document.createElement('div');
                     akouFields.className = 'wkAkouFields';
@@ -3474,35 +3474,19 @@
                     toggleAkouFields();
 
                     // Rows saved before this field existed carry only CanTranslate: migrate it to "en" or nothing.
-                    var isNewOpenRouter = !w.ApiUrl ? false : WhisperSubsConfig._isOpenRouterUrl(w.ApiUrl);
-                    var targetsValue = isNewOpenRouter
-                        ? ''
-                        : ((w.TranslateTargets && w.TranslateTargets.length)
-                            ? w.TranslateTargets.join(', ')
-                            : (w.CanTranslate !== false ? 'en' : ''));
+                    var targetsValue = (w.TranslateTargets && w.TranslateTargets.length)
+                        ? w.TranslateTargets.join(', ')
+                        : (w.CanTranslate !== false ? 'en' : '');
                     row.appendChild(WhisperSubsConfig._workerField(
-                        'Translation targets', 'text', 'wkTargets', { placeholder: 'en (leave blank for OpenRouter)', maxlength: '256', spellcheck: 'false' },
+                        'Translation targets', 'text', 'wkTargets', { placeholder: 'en', maxlength: '256', spellcheck: 'false' },
                         targetsValue,
-                        'Comma-separated language codes this worker translates into. en is Whisper translation. Canary codes (nl, de, fr, ...) need the CrispASR dialect. Leave blank for a transcribe-only worker (required for OpenRouter, Qwen3-ASR, and akou).'));
+                        'Comma-separated language codes this worker translates into. en is Whisper/OpenRouter English translation. Canary codes (nl, de, fr, ...) need the CrispASR dialect. Leave blank for a transcribe-only worker (required for Qwen3-ASR and akou).'));
                     row.appendChild(WhisperSubsConfig._workerCheckbox('wkEnabled', 'Enabled', w.Enabled !== false));
-
-                    var targetsInput = row.querySelector('.wkTargets');
-                    if (targetsInput) {
-                        targetsInput.addEventListener('input', function () {
-                            targetsInput.setAttribute('data-user-edited', '1');
-                        });
-                    }
 
                     // Re-check for duplicate endpoints whenever this row's URL or Enabled state changes.
                     var dupUrlInput = row.querySelector('.wkUrl');
                     if (dupUrlInput) {
                         dupUrlInput.addEventListener('input', function () {
-                            if (WhisperSubsConfig._isOpenRouterUrl(dupUrlInput.value)
-                                && targetsInput
-                                && targetsInput.getAttribute('data-user-edited') !== '1'
-                                && (targetsInput.value || '').trim().toLowerCase() === 'en') {
-                                targetsInput.value = '';
-                            }
                             WhisperSubsConfig.updateWorkerDuplicateWarning(row.closest('[data-role="page"]'));
                         });
                     }
@@ -3668,9 +3652,6 @@
                         }
                         if ((w.Dialect === 'crispasr-qwen3' || w.Dialect === 'akou') && w.TranslateTargets.length) {
                             return label + ': a Qwen3-ASR or akou server cannot translate. Leave its translation targets blank.';
-                        }
-                        if (WhisperSubsConfig._isOpenRouterUrl(w.ApiUrl) && w.TranslateTargets.length) {
-                            return label + ': OpenRouter does not provide /v1/audio/translations. Leave its translation targets blank.';
                         }
                         if (w.Priority < -10 || w.Priority > 10) {
                             return label + ': the akou job priority must be from -10 to 10.';
