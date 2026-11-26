@@ -86,7 +86,7 @@ namespace WhisperSubs.Controller.Workers
                 {
                     IsLocal = true,
                     CostWeight = 0,
-                    MaxConcurrency = 1,
+                    MaxConcurrency = EngineOptions.MaxFullModelEngines(config.MaxFullModelEngines),
                     TranslateTargets = WorkerTargets.ForLocal(
                         _installCheck.IsInstalled(config.CrispAsrBinaryPath, config.CanaryModelPath)),
                 };

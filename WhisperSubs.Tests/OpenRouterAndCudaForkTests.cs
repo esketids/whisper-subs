@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using WhisperSubs.Configuration;
+using WhisperSubs.Controller.Workers;
 using WhisperSubs.Providers;
 using Xunit;
 
@@ -91,5 +92,17 @@ public class OpenRouterAndCudaForkTests
         {
             HostEngineGates.Reset();
         }
+    }
+
+    [Fact]
+    public void LocalTranscriptionWorker_ScalesMaxConcurrencyWithMaxFullModelEngines()
+    {
+        var cfg = new PluginConfiguration { MaxFullModelEngines = 4 };
+        var provider = new WhisperProvider(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WhisperProvider>.Instance,
+            "/tmp/nonexistent-model.bin");
+        var worker = new LocalTranscriptionWorker(provider, () => cfg, new CanaryInstallCheck(_ => false), _ => null);
+
+        Assert.Equal(4, worker.Capabilities.MaxConcurrency);
     }
 }

@@ -2,50 +2,18 @@
   {
     "guid": "97124bd9-c8cd-4a53-a213-e593aa3fef52",
     "name": "WhisperSubs",
-    "description": "Automated subtitle generation for Jellyfin using local Whisper AI models.",
-    "overview": "Generate subtitles for your media library using local speech-to-text AI (whisper.cpp). Supports CPU and GPU-accelerated transcription. All processing happens locally on your server.",
-    "owner": "GeiserX",
+    "overview": "Generate subtitles using local or remote Whisper workers (esketids fork).",
+    "description": "Forked WhisperSubs with OpenRouter compatibility, multi-GPU CUDA round-robin, and scalable local concurrency.",
+    "owner": "esketids",
     "category": "Subtitles",
     "versions": [
       {
-        "version": "4.8.0.0",
-        "changelog": "See https://github.com/GeiserX/whisper-subs/releases",
+        "version": "4.18.0.0",
+        "changelog": "See https://github.com/esketids/whisper-subs/releases",
         "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/GeiserX/whisper-subs/releases/download/v4.8.0.0/WhisperSubs_4.8.0.0.zip",
-        "checksum": "3bb0436171b861b6f25856217b81b488",
-        "timestamp": "2026-08-24T21:28:48Z"
-      },
-      {
-        "version": "4.7.0.1",
-        "changelog": "See https://github.com/GeiserX/whisper-subs/releases",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/GeiserX/whisper-subs/releases/download/v4.7.0.1/WhisperSubs_4.7.0.1.zip",
-        "checksum": "296706be5216ce49e94887a5ce4f1122",
-        "timestamp": "2026-08-19T12:55:58Z"
-      },
-      {
-        "version": "4.7.0.0",
-        "changelog": "See https://github.com/GeiserX/whisper-subs/releases",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/GeiserX/whisper-subs/releases/download/v4.7.0.0/WhisperSubs_4.7.0.0.zip",
-        "checksum": "d5cd213de795f8d39254099b65b85169",
-        "timestamp": "2026-08-10T22:09:41Z"
-      },
-      {
-        "version": "4.6.0.1",
-        "changelog": "See https://github.com/GeiserX/whisper-subs/releases",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/GeiserX/whisper-subs/releases/download/v4.6.0.1/WhisperSubs_4.6.0.1.zip",
-        "checksum": "b274563e322051c25bc5dcef59819528",
-        "timestamp": "2026-08-06T23:33:24Z"
-      },
-      {
-        "version": "4.6.0.0",
-        "changelog": "See https://github.com/GeiserX/whisper-subs/releases",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/GeiserX/whisper-subs/releases/download/v4.6.0.0/WhisperSubs_4.6.0.0.zip",
-        "checksum": "52fe46e2b285a8c532ee7a7cfb86c519",
-        "timestamp": "2026-08-06T12:18:30Z"
+        "sourceUrl": "https://github.com/esketids/whisper-subs/releases/latest",
+        "checksum": "",
+        "timestamp": "2026-11-26T17:55:00Z"
       }
     ]
   }

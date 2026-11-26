@@ -333,6 +333,8 @@ namespace WhisperSubs.Controller
             // Left out at the default, so the signature of every install that never set it is unchanged.
             if (config.RemoteTitlesPerRequestSlot > 1)
                 sb.Append("titles=").Append(config.RemoteTitlesPerRequestSlot).Append(';');
+            if (config.MaxFullModelEngines > 1)
+                sb.Append("maxfull=").Append(config.MaxFullModelEngines).Append(';');
 
             if (source == WorkerSource.ExplicitList && config.Workers != null)
             {
